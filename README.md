@@ -162,15 +162,15 @@ El módulo principal proporciona:
 
 ## 📄 Licencia
 
-Este proyecto es de código abierto y está disponible para uso personal y comercial.
+Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
 
 ## 👤 Autor
 
-Creado por Nito
+Creado por **Nito**
 
 ## 🤝 Contribuciones
 
-Las contribuciones son bienvenidas. Si encuentras algún bug o tienes sugerencias de mejora, no dudes en reportarlo.
+Las contribuciones son bienvenidas. Si encuentras algún bug o tienes sugerencias de mejora, no dudes en abrir un *issue* o enviar un *pull request*.
 
 ---
 
