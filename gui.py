@@ -27,7 +27,7 @@ class WorkerThread(QThread):
     finished = Signal(int, int, list)  # processed, failed, log
     error = Signal(str)
     
-    def __init__(self, organizer, source, dest, extensions, copy_mode, recursive, create_dest):
+    def __init__(self, organizer, source, dest, extensions, copy_mode, recursive, create_dest, check_hash):
         super().__init__()
         self.organizer = organizer
         self.source = source
@@ -36,6 +36,7 @@ class WorkerThread(QThread):
         self.copy_mode = copy_mode
         self.recursive = recursive
         self.create_dest = create_dest
+        self.check_hash = check_hash
     
     def run(self):
         """Ejecuta la operación de organización de archivos."""
@@ -47,6 +48,7 @@ class WorkerThread(QThread):
                 self.copy_mode,
                 self.recursive,
                 self.create_dest,
+                check_hash=self.check_hash,
                 progress_callback=lambda c, t, f: self.progress.emit(c, t, f)
             )
             self.finished.emit(processed, failed, log)
@@ -143,10 +145,12 @@ class MainWindow(QMainWindow):
         self.recursive_checkbox = QCheckBox("Buscar en subdirectorios (recursivo)")
         self.create_dest_checkbox = QCheckBox("Crear carpeta destino si no existe")
         self.create_dest_checkbox.setChecked(True)
+        self.hash_checkbox = QCheckBox("Evitar duplicados (SHA-512)")
         
         options_layout.addWidget(self.copy_checkbox)
         options_layout.addWidget(self.recursive_checkbox)
         options_layout.addWidget(self.create_dest_checkbox)
+        options_layout.addWidget(self.hash_checkbox)
         options_layout.addStretch()
         
         options_group.setLayout(options_layout)
@@ -466,7 +470,8 @@ class MainWindow(QMainWindow):
             self.get_extensions(),
             self.copy_checkbox.isChecked(),
             self.recursive_checkbox.isChecked(),
-            self.create_dest_checkbox.isChecked()
+            self.create_dest_checkbox.isChecked(),
+            self.hash_checkbox.isChecked()
         )
         
         # Conectar señales
@@ -537,6 +542,7 @@ class MainWindow(QMainWindow):
         self.copy_checkbox.setChecked(False)
         self.recursive_checkbox.setChecked(False)
         self.create_dest_checkbox.setChecked(True)
+        self.hash_checkbox.setChecked(False)
         self.log_text.append("✓ Interfaz limpiada")
 
 

@@ -66,7 +66,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 cd "$SCRIPT_DIR"
-python main.py
+python main_organizador_archivos.py
 
 # Capturar el código de salida
 EXIT_CODE=$?

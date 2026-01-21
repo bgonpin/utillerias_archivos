@@ -5,8 +5,9 @@ Permite mover o copiar archivos de una carpeta a otra según su extensión.
 
 import os
 import shutil
+import hashlib
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 import logging
 
 
@@ -78,6 +79,27 @@ class FileOrganizer:
         self.logger.info(f"Encontrados {len(found_files)} archivos con extensiones {normalized_extensions}")
         return found_files
     
+    def _calculate_sha512(self, file_path: Path) -> str:
+        """
+        Calcula el hash SHA-512 de un archivo.
+        
+        Args:
+            file_path: Ruta del archivo
+            
+        Returns:
+            Hash SHA-512 en formato hexadecimal
+        """
+        sha512_hash = hashlib.sha512()
+        try:
+            with open(file_path, "rb") as f:
+                # Leer en bloques para no saturar la memoria
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha512_hash.update(byte_block)
+            return sha512_hash.hexdigest()
+        except Exception as e:
+            self.logger.error(f"Error calculando hash para {file_path}: {e}")
+            return ""
+
     def _get_unique_filename(self, dest_path: Path) -> Path:
         """
         Genera un nombre de archivo único si ya existe en el destino.
@@ -112,6 +134,7 @@ class FileOrganizer:
         copy_mode: bool = False,
         recursive: bool = False,
         create_dest: bool = True,
+        check_hash: bool = False,
         progress_callback: Optional[callable] = None
     ) -> Tuple[int, int, List[str]]:
         """
@@ -124,6 +147,7 @@ class FileOrganizer:
             copy_mode: Si True, copia en lugar de mover
             recursive: Si True, busca recursivamente
             create_dest: Si True, crea el directorio destino si no existe
+            check_hash: Si True, evita procesar archivos con el mismo hash SHA-512 que ya existan en el destino
             progress_callback: Función callback para reportar progreso (recibe: current, total, filename)
             
         Returns:
@@ -149,6 +173,17 @@ class FileOrganizer:
         files_to_process = self.scan_files(source_dir, extensions, recursive)
         total_files = len(files_to_process)
         
+        # Mapeo de hashes en destino si está activado
+        dest_hashes = set()
+        if check_hash:
+            self.logger.info("Escaneando hashes en el directorio destino...")
+            self.operation_log.append("🔍 Escaneando hashes en el directorio destino...")
+            for f in dest_path.rglob('*'):
+                if f.is_file():
+                    h = self._calculate_sha512(f)
+                    if h:
+                        dest_hashes.add(h)
+        
         if total_files == 0:
             self.logger.warning("No se encontraron archivos para procesar")
             self.operation_log.append("⚠ No se encontraron archivos para procesar")
@@ -159,6 +194,18 @@ class FileOrganizer:
         
         for idx, file_path in enumerate(files_to_process, 1):
             try:
+                # Comprobar hash si está activado
+                if check_hash:
+                    file_hash = self._calculate_sha512(file_path)
+                    if file_hash in dest_hashes:
+                        log_msg = f"⚠ Omitido: {file_path.name} (ya existe un archivo con el mismo contenido en el destino)"
+                        self.logger.info(log_msg)
+                        self.operation_log.append(log_msg)
+                        if progress_callback:
+                            progress_callback(idx, total_files, file_path.name)
+                        continue
+                    # Si no está en el conjunto, lo añadiremos después de procesarlo con éxito
+                
                 # Determinar ruta de destino
                 dest_file = dest_path / file_path.name
                 
@@ -177,6 +224,10 @@ class FileOrganizer:
                 log_msg = f"✓ {operation} {file_path.name} → {dest_file.name}"
                 self.logger.info(log_msg)
                 self.operation_log.append(log_msg)
+                
+                # Si el procesamiento fue exitoso y el check de hash está activo, añadirlo al set
+                if check_hash and 'file_hash' in locals():
+                    dest_hashes.add(file_hash)
                 
                 # Callback de progreso
                 if progress_callback:
